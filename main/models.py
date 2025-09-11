@@ -9,9 +9,9 @@ class News(models.Model):
         ('ball', 'Ball'),
     ]
 
-    name = models.CharField(max_length=255, db_column='title')
+    name = models.CharField(max_length=255)
     price = models.IntegerField()
-    description = models.TextField(db_column='content')
+    description = models.TextField()
     thumbnail = models.URLField(blank=True, null=True)
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='update')
     news_views = models.PositiveIntegerField(default=0)
