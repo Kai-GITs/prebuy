@@ -32,7 +32,7 @@ DEBUG = True
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "kalfin-jefwin-prebuy.pbp.cs.ui.ac.id"]
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://kalfin-jefwin-prebuy.pbp.cs.ui.ac.id/"
+    "https://kalfin-jefwin-prebuy.pbp.cs.ui.ac.id"
 ]
 # Application definition
 
