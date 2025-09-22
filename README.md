@@ -1,3 +1,76 @@
+
+Jelaskan bagaimana cara kamu mengimplementasikan checklist di atas secara step-by-step (bukan hanya sekadar mengikuti tutorial).
+
+Tugas 4
+
+1. Django AuthenticationForm adalah form Django untuk proses login yang memvalidasi username dan password menggunakan sistem autentikasi Django.
+Kelebihan: Siap pakai, dapat dikostumisasi, dan aman.
+Kekurangan: fielnya hanya username dan password, sehingga untuk email dan identifier lain perlu kustomisasi.
+
+2. Autentikasi: verifikasi identitas pengguna.
+Otorisasi: penentuan hak akses.
+
+Keduanya ada pada sistem auth Django.
+Autentikasi lewat authentication backends, authenticate(), login(), dsb.
+Otorisasi lewat permissions, groups, dan helper seperti @login_required dan @permission_required.
+
+3. Cookies ringan pada server dan universal di browser, namun kapasitasnya kecil dan rawan disalahgunakan jika berisi data sensitif.
+Sessions memiliki kapasitas data yang lebih besar dan keamanan yang lebih baik, namun bebannya pada server signifikan.
+
+4. Tidak, masih ada resiko bebocoran dan manipulasi data (XSS, CSRF, Hijacking, dsb.). Djanfo menengani resiko tersebut dengan setting CSRF_TOKEN, pengamanan atribut cookie seperti HyypOnly dan Secure, Auto-escaping, dsb.
+
+5. 
+a. Membuat fungsi register pada views.py untuk menghasilkan formulir registrasi yang mereturn render ke register.html. Buat file html untuk registrasinya dan taruh di direktori templates. Untuk login dan logout mirip dengan membuat views.py, yaitu mendefinisikan fungsi (jangan lupa mengimpor library yang dibutuhkan untuk authenticate di login), lalu buatkan juga keduanya file html. Setelah itu, daftarkan pathnya di urls.py. Buat juga button logoutnya di halaman utama.
+
+b. Untuk menghubungkan Product dengan user, buatlah penghubung antara user dengan product memakai model.ForeignKey dan mendefinisikan user di formnya. Migrasi kode pythonnya. Setelah itu, bisa memakai hubungan tersebut untuk filter di halaman main dan juga menampilkan user dari request.
+
+c. Run python manage.py runserver, buat 2 akun, masing-masing buatkan 3 product.
+
+d. Pada form login, Buatlah HttpResponseRedirect dengan reverse untuk memberi nama view dan url, lalu set cookie untuk menyimpan data last login user. pada show_main di context tambahkan key last_login yang valuenya adalah cookies yang disimpan. Pada fungsi logout, implementasikan juga HttpResponseRedirect dan hapus cookie last_login. Untuk menampilkan last login di halaman utama, pada main.html, tambahkan tampilan last login yang mengambil data dari context tadi.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Tugas 3
 
 1. Data delivery adalah cara platform mengirimkan data ke client secara terstruktur dan konsisten. Sehingga, format pada front end sama. Contohnya: /json/ dan /xml/ mengirim data news ke client agar bisa dipakai di halaman lain atau aplikasi eksternal.
