@@ -1,0 +1,110 @@
+{% load static humanize %}
+<article class="group relative bg-white rounded-xl border border-gray-200 hover:border-green-200 hover:shadow-lg transition-all duration-300 overflow-hidden">
+  <!-- Media -->
+  <div class="aspect-[16/9] relative overflow-hidden">
+    {% if news.thumbnail %}
+      <img src="{{ news.thumbnail }}" alt="{{ news.name }}"
+           class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]">
+    {% else %}
+      <div class="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200"></div>
+    {% endif %}
+
+    <!-- overlay gradient -->
+    <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-black/5 to-transparent opacity-70"></div>
+
+    <!-- left top: category -->
+    <div class="absolute top-3 left-3 space-y-2">
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-green-600/95 text-white shadow-sm">
+        <!-- tag icon -->
+        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.59 13.41 12 4.83A2 2 0 0 0 10.59 4H6a2 2 0 0 0-2 2v4.59a2 2 0 0 0 .59 1.41l8.59 8.59a2 2 0 0 0 2.82 0l4.59-4.59a2 2 0 0 0 0-2.82ZM7.5 8A1.5 1.5 0 1 1 9 6.5 1.5 1.5 0 0 1 7.5 8Z"/></svg>
+        {{ news.get_category_display }}
+      </span>
+    </div>
+
+    <!-- right top: status -->
+    <div class="absolute top-3 right-3 flex gap-2">
+      {% if news.is_featured %}
+      <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-semibold bg-yellow-100 text-yellow-800 shadow-sm">
+        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="m12 17.27 6.18 3.73-1.64-7.03L21 9.24l-7.19-.61L12 2 10.19 8.63 3 9.24l4.46 4.73L5.82 21z"/></svg>
+        Featured
+      </span>
+      {% endif %}
+      {% if news.is_news_hot %}
+      <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-semibold bg-red-100 text-red-700 shadow-sm">
+        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 0s1 3-1.5 5.5S8 9 8 12a4 4 0 0 0 8 0c0-3-2-4-2-6 0-2 1.5-3.5 1.5-3.5S18 5 18 8a6 6 0 1 1-12 0c0-4 3.5-6.5 7.5-8Z"/></svg>
+        Hot
+      </span>
+      {% endif %}
+    </div>
+
+    <!-- bottom left: PRICE (tetap seperti sebelumnya) -->
+    {% if news.price is not None %}
+      <div class="absolute bottom-3 left-3">
+        <span class="inline-flex items-center px-3 py-1 rounded-md text-sm font-semibold bg-indigo-600 text-white shadow">
+          Rp {{ news.price|intcomma }}
+        </span>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Content -->
+  <div class="p-5">
+    <!-- meta -->
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 mb-2.5">
+      <span class="inline-flex items-center gap-1">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M7 2h2v2h6V2h2v2h3a1 1 0 0 1 1 1v3H3V5a1 1 0 0 1 1-1h3V2Zm14 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9h18Z"/></svg>
+        <time datetime="{{ news.created_at|date:'c' }}">{{ news.created_at|date:"M j, Y" }}</time>
+      </span>
+      <span aria-hidden="true">•</span>
+      <span class="inline-flex items-center gap-1">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5c-7 0-11 7-11 7s4 7 11 7 11-7 11-7-4-7-11-7Zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Z"/></svg>
+        {{ news.news_views }} views
+      </span>
+      {% if news.user %}
+        <span aria-hidden="true">•</span>
+        <span class="inline-flex items-center gap-1">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-5.33 0-8 2.67-8 6v2h16v-2c0-3.33-2.67-6-8-6Z"/></svg>
+          {{ news.user.username }}
+        </span>
+      {% endif %}
+    </div>
+
+    <!-- title -->
+    <h3 class="text-[1.075rem] font-semibold text-gray-900 mb-2 line-clamp-2 leading-snug">
+      <a href="{% url 'main:show_news' news.id %}"
+         class="bg-gradient-to-r from-green-600/0 via-green-600/0 to-green-600/0 bg-[length:0%_2px] bg-no-repeat bg-left-bottom
+                group-hover:bg-[length:100%_2px] transition-[background-size,color] duration-300 ease-out hover:text-gray-900">
+        {{ news.name }}
+      </a>
+    </h3>
+
+    <!-- excerpt -->
+    <p class="text-gray-600 text-sm leading-relaxed line-clamp-3">
+      {{ news.description|truncatewords:22 }}
+    </p>
+
+    <!-- actions -->
+    <div class="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+      <a href="{% url 'main:show_news' news.id %}"
+         class="inline-flex items-center gap-1.5 text-sm font-medium text-green-700 hover:text-green-800 transition-colors">
+        Read more
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="m13 5 7 7-7 7v-4H4v-6h9V5Z"/></svg>
+      </a>
+
+      {% if user.is_authenticated and news.user == user %}
+      <div class="flex items-center gap-2">
+        <a href="{% url 'main:edit_news' news.id %}"
+           class="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="m3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25ZM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82Z"/></svg>
+          Edit
+        </a>
+        <a href="{% url 'main:delete_news' news.id %}"
+           class="inline-flex items-center gap-1.5 rounded-md border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M6 7h12l-1 14H7L6 7Zm3-3h6l1 2H8l1-2Z"/></svg>
+          Delete
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</article>

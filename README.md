@@ -1,5 +1,69 @@
+Tugas 5
 
-Jelaskan bagaimana cara kamu mengimplementasikan checklist di atas secara step-by-step (bukan hanya sekadar mengikuti tutorial).
+1. !important, Origin (incline styles > stylesheet penulis >user agent), Specificity, source order
+
+2. Agar tampilan rensponsif dan bekerja dengan baik di semua device, sehingga meningkatkan aksesibilitas. contoh yang belum menerapkan: website dengan fixed width. yang sudah: website modern seperti Youtube. Youtube menggunakan responsive design karena penggunanya mengharapkan akses yang fleksibel antar device.
+
+3. Content: isi dari box (tempat terlihatnya teks dan gambar)
+Padding: mengosongkan area di sekitar konten (transparan)
+Border: garis tepian yang membungkus konten dan padding-nya
+Margin: mengosongkan area di sekitar border (transparan)
+
+Cara implementasi:
+<div class="bg-slate-50 p-6">
+  <article class="bg-white p-4 md:p-6 border border-gray-200 rounded-xl shadow-sm mb-4">
+    <h3 class="text-lg font-semibold text-gray-900 mb-2">Title</h3>
+    <p class="text-gray-600 mb-4">Description</p>
+    <div class="flex items-center justify-between">
+      <span class="inline-block bg-indigo-600 text-white text-sm font-semibold px-3 py-1 rounded">
+        Rp 150.000
+      </span>
+      <a href="#" class="text-green-700 hover:text-green-800 text-sm font-medium">
+        View details →
+      </a>
+    </div>
+  </article>
+</div>
+
+4. Flexbox adalah sistem layout satu dimensi yang menyusun elemen secara berbaris, lalu mengatur perataan, jarak, dan pembungkusan (wrap) di sumbunya, cocok untuk komponen linear seperti navbar, deretan tombol, form row, atau card yang perlu diratakan dan direnggangkan dengan mudah.
+
+Grid adalah sistem layout dua dimensi yang membagi halaman menjadi baris dan kolom sekaligus, sehingga posisi dan ukuran setiap area bisa diatur untuk kerangka halaman (header–sidebar–content–footer) dan galeri produk yang jumlah kolomnya berubah otomatis sesuai lebar layar.
+
+5. 
+a. Buat fungsi edit_news dan delete_news ppada views.py. Buat juga halaman html masing-masing di main/templates. Setelah itu, tambahkan pathnya di urls.py. Terakhir, buat botton di main.html di main/templates untuk mengarahkan ke halaman edit/delete product.
+
+b. Tambahkan tailwind ke base.html. tambahkan middleware whitenoise pada settings.py. juga, pastikan static file dir merujuk pada BASE_DIR / 'static'.
+buat directory static di rooe dan tambahkan folder css yang diisi dengan global.css untuk menambah style css di django dan folder image yang berisi no-news.png yang nantinya akan ditampilkan jika tidak ada news.
+
+kustomisasi halaman login, register, add product, edit product, dan detail product dengan mengedit halaman yang berkaitan di main/templates/*.html. Gunakan style dan component dari Tailwind.
+
+Kustomisasi daftar product: empty state bergambar; kalau ada data, render card custom, tambahkan juga 2 button untuk edit dan delete.
+
+Buat navbar responsif (mobile/desktop) + hamburger.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 Tugas 4
 
