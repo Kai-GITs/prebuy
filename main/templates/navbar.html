@@ -15,9 +15,9 @@
           <a href="/" class="font-medium text-gray-600 hover:text-gray-900 transition-colors border-b-2 border-transparent hover:border-green-600">
             Home
           </a>
-          <a href="{% url 'main:create_news' %}" class="font-medium text-gray-600 hover:text-gray-900 transition-colors border-b-2 border-transparent hover:border-green-600">
+          <button type="button" class="font-medium text-gray-600 hover:text-gray-900 transition-colors border-b-2 border-transparent hover:border-green-600 js-open-create">
             Create Product
-          </a>
+          </button>
         </div>
 
         <!-- Desktop Right -->
@@ -31,7 +31,7 @@
               <div class="flex h-9 w-9 items-center justify-center rounded-full bg-green-100 text-green-700 font-semibold uppercase">
                 {{ user.username|first }}
               </div>
-              <a href="{% url 'main:logout' %}" class="ml-2 text-red-600 hover:text-red-700 font-medium transition-colors">Logout</a>
+              <a href="{% url 'main:logout' %}" class="ml-2 text-red-600 hover:text-red-700 font-medium transition-colors" data-logout-btn>Logout</a>
             </div>
           {% else %}
             <a href="{% url 'main:login' %}" class="text-gray-600 hover:text-gray-900 font-medium transition-colors">Login</a>
@@ -57,7 +57,7 @@
     <div class="px-6 py-4 space-y-4">
       <div class="space-y-1">
         <a href="/" class="block text-gray-700 hover:text-gray-900 font-medium py-3 transition-colors">Home</a>
-        <a href="{% url 'main:create_news' %}" class="block text-gray-700 hover:text-gray-900 font-medium py-3 transition-colors">Create Product</a>
+        <button type="button" class="block text-left w-full text-gray-700 hover:text-gray-900 font-medium py-3 transition-colors js-open-create">Create Product</button>
       </div>
       <div class="border-t border-gray-200 pt-4">
         {% if user.is_authenticated %}
@@ -70,7 +70,7 @@
               <div class="text-sm text-gray-500">{{ npm|default:"2406360256" }} — {{ class|default:"Class" }}</div>
             </div>
           </div>
-          <a href="{% url 'main:logout' %}" class="block text-red-600 hover:text-red-700 font-medium py-3 transition-colors">Logout</a>
+          <a href="{% url 'main:logout' %}" class="block text-red-600 hover:text-red-700 font-medium py-3 transition-colors" data-logout-btn>Logout</a>
         {% else %}
           <div class="space-y-3">
             <a href="{% url 'main:login' %}" class="block text-gray-700 hover:text-gray-900 font-medium py-3 transition-colors">Login</a>
@@ -112,5 +112,71 @@
       last = y;
     }, { passive: true });
   }
+})();
+
+(function () {
+  const createButtons = document.querySelectorAll(".js-open-create");
+  const logoutLinks = document.querySelectorAll("[data-logout-btn]");
+
+  function fallbackToast(title, message, type) {
+    if (typeof showToast === "function") {
+      showToast(title, message, type);
+    } else if (message) {
+      alert(`${title}: ${message}`);
+    } else {
+      alert(title);
+    }
+  }
+
+  function getCsrfToken() {
+    const match = document.cookie.match(/csrftoken=([^;]+)/);
+    if (match) return decodeURIComponent(match[1]);
+    const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    return csrfInput ? csrfInput.value : "";
+  }
+
+  function parseErrorPayload(payload) {
+    if (!payload) return "Unexpected error occurred.";
+    if (typeof payload === "string") return payload;
+    if (Array.isArray(payload)) return payload.join(", ");
+    return Object.values(payload).flat().filter(Boolean).join(", ") || "Unexpected error occurred.";
+  }
+
+  createButtons.forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      if (typeof openCreateModal === "function") {
+        openCreateModal();
+      } else {
+        window.location.href = "{% url 'main:show_main' %}";
+      }
+    });
+  });
+
+  logoutLinks.forEach((link) => {
+    link.addEventListener("click", async (event) => {
+      event.preventDefault();
+      try {
+        const response = await fetch(link.href, {
+          method: "POST",
+          headers: { "X-CSRFToken": getCsrfToken() },
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          fallbackToast("Logout failed", parseErrorPayload(data.errors || data.detail), "error");
+          return;
+        }
+
+        fallbackToast("Logged out", "See you soon!", "success");
+        setTimeout(() => {
+          window.location.href = data.redirect || "{% url 'main:login' %}";
+        }, 500);
+      } catch (error) {
+        console.error("Logout error:", error);
+        fallbackToast("Logout failed", "Unexpected error occurred.", "error");
+      }
+    });
+  });
 })();
 </script>

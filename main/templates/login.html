@@ -5,6 +5,7 @@
 {% endblock meta %}
 
 {% block content %}
+{% include 'toast.html' %}
 <div class="bg-gray-50 w-full min-h-screen flex items-center justify-center p-8">
   <div class="max-w-md w-full">
     <div class="bg-white rounded-lg border border-gray-200 p-6 sm:p-8 form-style">
@@ -13,32 +14,9 @@
         <p class="text-gray-600">Welcome back to Football News</p>
       </div>
 
-      <!-- Form Errors Display -->
-      {% if form.non_field_errors %}
-        <div class="mb-6">
-          {% for error in form.non_field_errors %}
-            <div class="px-4 py-3 rounded-md text-sm border bg-red-50 border-red-200 text-red-700">
-              {{ error }}
-            </div>
-          {% endfor %}
-        </div>
-      {% endif %}
+      <div id="login-error-messages" class="mb-6 space-y-2 hidden"></div>
 
-      {% if form.errors %}
-        <div class="mb-6">
-          {% for field, errors in form.errors.items %}
-            {% if field != '__all__' %}
-              {% for error in errors %}
-                <div class="px-4 py-3 rounded-md text-sm border bg-red-50 border-red-200 text-red-700 mb-2">
-                  <strong>{{ field|title }}:</strong> {{ error }}
-                </div>
-              {% endfor %}
-            {% endif %}
-          {% endfor %}
-        </div>
-      {% endif %}
-
-      <form method="POST" action="" class="space-y-6">
+      <form id="loginForm" class="space-y-6">
         {% csrf_token %}
         
         <div>
@@ -102,4 +80,86 @@
     </div>
   </div>
 </div>
+
+<script>
+(function () {
+  const form = document.getElementById('loginForm');
+  const errorContainer = document.getElementById('login-error-messages');
+
+  function getCsrfToken() {
+    const match = document.cookie.match(/csrftoken=([^;]+)/);
+    if (match) return decodeURIComponent(match[1]);
+    const csrfInput = form ? form.querySelector('input[name="csrfmiddlewaretoken"]') : null;
+    return csrfInput ? csrfInput.value : '';
+  }
+
+  function renderErrors(messages) {
+    if (!errorContainer) return;
+    errorContainer.innerHTML = '';
+    if (!messages || messages.length === 0) {
+      errorContainer.classList.add('hidden');
+      return;
+    }
+    errorContainer.classList.remove('hidden');
+    messages.forEach((msg) => {
+      const div = document.createElement('div');
+      div.className = 'px-4 py-3 rounded-md text-sm border bg-red-50 border-red-200 text-red-700';
+      div.textContent = msg;
+      errorContainer.appendChild(div);
+    });
+  }
+
+  function normalizeErrors(payload) {
+    if (!payload) return ['Unexpected error occurred.'];
+    if (typeof payload === 'string') return [payload];
+    if (Array.isArray(payload)) return payload;
+    const flat = Object.values(payload).flat().filter(Boolean).map(String);
+    return flat.length ? flat : ['Unexpected error occurred.'];
+  }
+
+  if (form) {
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      renderErrors([]);
+
+      const formData = new FormData(form);
+      const payload = Object.fromEntries(formData.entries());
+
+      try {
+        const response = await fetch("{% url 'main:login' %}", {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken(),
+          },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          const messages = normalizeErrors(data.errors || data.detail);
+          renderErrors(messages);
+          if (typeof showToast === 'function') {
+            showToast('Login failed', messages.join(', '), 'error');
+          }
+          return;
+        }
+
+        if (typeof showToast === 'function') {
+          showToast('Login successful', 'Redirecting...', 'success');
+        }
+        setTimeout(() => {
+          window.location.href = data.redirect || "{% url 'main:show_main' %}";
+        }, 500);
+      } catch (error) {
+        console.error('Login error:', error);
+        renderErrors(['Unexpected error occurred.']);
+        if (typeof showToast === 'function') {
+          showToast('Login error', 'Unexpected error occurred.', 'error');
+        }
+      }
+    });
+  }
+})();
+</script>
 {% endblock content %}

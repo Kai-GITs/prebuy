@@ -2,56 +2,566 @@
 {% load static %}
 
 {% block meta %}
-<title>Football News</title>
+<title>Sport Products</title>
 {% endblock meta %}
 
 {% block content %}
 {% include 'navbar.html' %}
+{% include 'toast.html' %}
+{% include 'modal.html' %}
+
 <div class="bg-gray-50 w-full pt-16 min-h-screen">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
     <!-- Header Section -->
     <div class="mb-8">
       <h1 class="text-3xl font-bold text-gray-900 mb-2">Latest Products</h1>
       <p class="text-gray-600">Stay updated with the latest sport products</p>
     </div>
 
+    <!-- Button to open modal -->
+    <button id="open-create-btn" type="button" class="inline-flex items-center px-4 py-2 bg-white text-green-600 font-semibold outline outline-2 outline-green-600 outline-offset-[-2px] rounded-md hover:bg-green-600 hover:text-white transition-colors mb-4">
+      Create Product
+    </button>
+
     <!-- Filter Section -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 bg-white rounded-lg border border-gray-200 p-4">
-      <div class="flex space-x-3 mb-4 sm:mb-0">
-        <a href="?" class="{% if request.GET.filter == 'all' or not request.GET.filter  %} bg-green-600 text-white{% else %}bg-white text-gray-700 border border-gray-300{% endif %} px-4 py-2 rounded-md font-medium transition-colors hover:bg-green-600 hover:text-white">
+      <div class="flex items-center space-x-3 mb-4 sm:mb-0">
+        <a id="filter-all" class="bg-green-600 text-white px-4 py-2 rounded-md font-medium transition-colors hover:bg-green-700">
           All Products
         </a>
-        <a href="?filter=my" class="{% if request.GET.filter == 'my' %} bg-green-600 text-white{% else %}bg-white text-gray-700 border border-gray-300{% endif %} px-4 py-2 rounded-md font-medium transition-colors hover:bg-green-600 hover:text-white">
+        <a id="filter-my" class="bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded-md font-medium transition-colors hover:bg-green-600 hover:text-white">
           My Products
         </a>
+        <button id="refresh-btn" type="button" class="inline-flex items-center px-3 py-2 border border-gray-300 text-gray-700 rounded-md font-medium hover:bg-gray-50 transition-colors">
+          Refresh
+        </button>
       </div>
       {% if user.is_authenticated %}
-        <div class="text-sm text-gray-500">
-          Last login: {{ last_login }}
-        </div>
+        <div class="text-sm text-gray-500">Last login: {{ last_login }}</div>
       {% endif %}
     </div>
 
-    <!-- News Grid -->
-    {% if not news_list %}
-      <div class="bg-white rounded-lg border border-gray-200 p-12 text-center">
-        <div class="w-32 h-32 mx-auto mb-4">
-          <img src="{% static 'image/no-news.png' %}" alt="No news available" class="w-full h-full object-contain">
-        </div>
-        <h3 class="text-lg font-medium text-gray-900 mb-2">No products found</h3>
-        <p class="text-gray-500 mb-6">Be the first to your sports items.</p>
-        <a href="{% url 'main:create_news' %}" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
-          Create Product
-        </a>
+    <!-- Loading State -->
+    <div id="loading" class="bg-white rounded-lg border border-gray-200 p-12 text-center hidden">
+      <svg class="animate-spin h-8 w-8 text-green-600 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+      </svg>
+      <p class="text-gray-600 mt-3">Loading products...</p>
+    </div>
+
+    <!-- Error State -->
+    <div id="error" class="hidden"></div>
+
+    <!-- Products Grid -->
+    <div id="grid" class="hidden"></div>
+
+    <!-- Empty State -->
+    <div id="empty" class="bg-white rounded-lg border border-gray-200 p-12 text-center hidden">
+      <div class="w-32 h-32 mx-auto mb-4">
+        <img src="{% static 'image/no-news.png' %}" alt="No products available" class="w-full h-full object-contain">
       </div>
-    {% else %}
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {% for news in news_list %}
-          {% include 'card_news.html' with news=news %}
-        {% endfor %}
-      </div>
-    {% endif %}
+      <h3 class="text-lg font-medium text-gray-900 mb-2">No products found</h3>
+      <p class="text-gray-500 mb-6">Be the first to your sports items.</p>
+      <button id="empty-create-btn" type="button" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
+        Create Product
+      </button>
+    </div>
   </div>
 </div>
+
+<script>
+// Configuration
+const UUID_PLACEHOLDER = '00000000-0000-0000-0000-000000000000';
+const NEWS_API_ENDPOINT = "{% url 'main:show_json' %}";
+const CREATE_NEWS_ENDPOINT = "{% url 'main:add_news_entry_ajax' %}";
+const UPDATE_NEWS_ENDPOINT_TEMPLATE = "{% url 'main:edit_news' '00000000-0000-0000-0000-000000000000' %}";
+const DELETE_NEWS_ENDPOINT_TEMPLATE = "{% url 'main:delete_news' '00000000-0000-0000-0000-000000000000' %}";
+const CURRENT_USER_ID = "{{ user.id|default_if_none:'' }}";
+
+// DOM Elements
+const loadingSpinner = document.getElementById('loading');
+const errorMessage = document.getElementById('error');
+const emptyStateDisplay = document.getElementById('empty');
+const newsGridContainer = document.getElementById('grid');
+const showAllNewsButton = document.getElementById('filter-all');
+const showMyNewsButton = document.getElementById('filter-my');
+const refreshButton = document.getElementById('refresh-btn');
+const openCreateButton = document.getElementById('open-create-btn');
+const emptyCreateButton = document.getElementById('empty-create-btn');
+const createModal = document.getElementById('createModal');
+const editModal = document.getElementById('editModal');
+const deleteModal = document.getElementById('deleteModal');
+const createForm = document.getElementById('createForm');
+const editForm = document.getElementById('editForm');
+const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+const modalCloseButtons = document.querySelectorAll('[data-close-modal]');
+
+// State
+let activeFilter = 'all';
+let allNewsData = [];
+let editingNewsId = null;
+let deletingNewsId = null;
+
+// Helpers
+function buildEndpoint(template, id) {
+  return template.replace(UUID_PLACEHOLDER, id);
+}
+
+function getCsrfToken() {
+  const match = document.cookie.match(/csrftoken=([^;]+)/);
+  if (match) return decodeURIComponent(match[1]);
+  const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+  return csrfInput ? csrfInput.value : '';
+}
+
+function updateFilterButtonsAppearance() {
+  if (!showAllNewsButton || !showMyNewsButton) return;
+
+  if (activeFilter === 'all') {
+    showAllNewsButton.className = 'bg-green-600 text-white px-4 py-2 rounded-md font-medium transition-colors hover:bg-green-700';
+    showMyNewsButton.className = 'bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded-md font-medium transition-colors hover:bg-green-600 hover:text-white';
+  } else {
+    showMyNewsButton.className = 'bg-green-600 text-white px-4 py-2 rounded-md font-medium transition-colors hover:bg-green-700';
+    showAllNewsButton.className = 'bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded-md font-medium transition-colors hover:bg-green-600 hover:text-white';
+  }
+}
+
+function displayPageSection({ showLoading = false, showError = false, showEmpty = false, showGrid = false }) {
+  loadingSpinner.classList.toggle('hidden', !showLoading);
+
+  if (showError) {
+    errorMessage.className = 'bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-6';
+  } else {
+    errorMessage.className = 'hidden';
+    errorMessage.textContent = '';
+  }
+
+  emptyStateDisplay.classList.toggle('hidden', !showEmpty);
+  newsGridContainer.classList.toggle('hidden', !showGrid);
+
+  if (showGrid) {
+    newsGridContainer.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6';
+  }
+}
+
+function getReadableCategoryName(categoryCode) {
+  const categoryMapping = {
+    cap: 'Cap',
+    jersey: 'Jersey',
+    card: 'Card',
+    ball: 'Ball',
+  };
+  return categoryMapping[categoryCode] || categoryCode;
+}
+
+function formatDate(isoString) {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function extractErrorMessage(errors) {
+  if (!errors) return 'Unexpected error occurred.';
+  if (typeof errors === 'string') return errors;
+  if (Array.isArray(errors)) return errors.join(', ');
+  const flat = Object.values(errors || {})
+    .flat()
+    .filter(Boolean)
+    .join(', ');
+  return flat || 'Unexpected error occurred.';
+}
+
+function showModalById(modalId) {
+  const modal = document.getElementById(modalId);
+  if (!modal) return;
+  const content = modal.querySelector('.modal-content');
+  modal.classList.remove('hidden');
+  if (content) {
+    content.classList.add('transition-all', 'duration-150', 'transform');
+    content.classList.add('opacity-0', 'scale-95');
+    requestAnimationFrame(() => {
+      content.classList.remove('opacity-0', 'scale-95');
+      content.classList.add('opacity-100', 'scale-100');
+    });
+  }
+}
+
+function hideModalById(modalId) {
+  const modal = document.getElementById(modalId);
+  if (!modal) return;
+  const content = modal.querySelector('.modal-content');
+  if (content) {
+    content.classList.remove('opacity-100', 'scale-100');
+    content.classList.add('opacity-0', 'scale-95');
+    setTimeout(() => {
+      modal.classList.add('hidden');
+    }, 150);
+  } else {
+    modal.classList.add('hidden');
+  }
+}
+
+function resetCreateForm() {
+  if (!createForm) return;
+  createForm.reset();
+  const featuredCheckbox = document.getElementById('create-is-featured');
+  if (featuredCheckbox) {
+    featuredCheckbox.checked = false;
+  }
+}
+
+function populateEditForm(data) {
+  if (!editForm) return;
+  editForm.reset();
+  editForm.querySelector('#edit-name').value = data.name || '';
+  editForm.querySelector('#edit-price').value = data.price ?? '';
+  editForm.querySelector('#edit-description').value = data.description || '';
+  editForm.querySelector('#edit-category').value = data.category || '';
+  editForm.querySelector('#edit-thumbnail').value = data.thumbnail || '';
+  editForm.querySelector('#edit-is-featured').checked = !!data.is_featured;
+}
+
+function buildNewsCardElement(item) {
+  const article = document.createElement('article');
+  article.className = 'group relative bg-white rounded-xl border border-gray-200 hover:border-green-200 hover:shadow-lg transition-all duration-300 overflow-hidden';
+
+  const name = DOMPurify.sanitize(item.name || '');
+  const description = DOMPurify.sanitize(item.description || '');
+  const thumbnail = item.thumbnail ? DOMPurify.sanitize(item.thumbnail) : null;
+  const categoryLbl = DOMPurify.sanitize(getReadableCategoryName(item.category));
+  const createdAtLabel = formatDate(item.created_at);
+  const createdAtAttr = item.created_at ? DOMPurify.sanitize(item.created_at) : '';
+  const newsViews = DOMPurify.sanitize(String(item.news_views ?? 0));
+  const detailUrl = DOMPurify.sanitize(`{% url 'main:show_news' '00000000-0000-0000-0000-000000000000' %}`.replace(UUID_PLACEHOLDER, item.id));
+  const sellerName = DOMPurify.sanitize(item.user_username || '');
+
+  const isFeatured = !!item.is_featured;
+  const isHot = Number(item.news_views ?? 0) > 20;
+
+  const priceNum = Number(item.price ?? 0);
+  const priceText = Number.isFinite(priceNum) ? `Rp ${priceNum.toLocaleString('id-ID')}` : '';
+  const priceBadge = priceText
+    ? `<div class="absolute bottom-3 left-3">
+         <span class="inline-flex items-center px-3 py-1 rounded-md text-sm font-semibold bg-indigo-600 text-white shadow">
+           ${DOMPurify.sanitize(priceText)}
+         </span>
+       </div>`
+    : '';
+
+  const thumbnailHtml = thumbnail
+    ? `<img src="${thumbnail}" alt="${name}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]">`
+    : `<div class="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200"></div>`;
+
+  const featuredLabel = isFeatured
+    ? `<span class="inline-flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-semibold bg-yellow-100 text-yellow-800 shadow-sm">
+         <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="m12 17.27 6.18 3.73-1.64-7.03L21 9.24l-7.19-.61L12 2 10.19 8.63 3 9.24l4.46 4.73L5.82 21z"/></svg>
+         Featured
+       </span>`
+    : '';
+  const hotLabel = isHot
+    ? `<span class="inline-flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-semibold bg-red-100 text-red-800 shadow-sm">
+         <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 0s1 3-1.5 5.5S8 9 8 12a4 4 0 0 0 8 0c0-3-2-4-2-6 0-2 1.5-3.5 1.5-3.5S18 5 18 8a6 6 0 1 1-12 0c0-4 3.5-6.5 7.5-8Z"/></svg>
+         Hot
+       </span>`
+    : '';
+
+  const ownerId = String(item.user_id ?? item.user ?? '');
+  const canEdit = CURRENT_USER_ID && String(CURRENT_USER_ID) === ownerId;
+  const editDeleteHtml = canEdit
+    ? `<div class="flex items-center gap-2">
+         <button type="button" data-news-id="${item.id}" class="edit-btn inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+           <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="m3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25ZM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82Z"/></svg>
+           Edit
+         </button>
+         <button type="button" data-news-id="${item.id}" class="delete-btn inline-flex items-center gap-1.5 rounded-md border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors">
+           <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M6 7h12l-1 14H7L6 7Zm3-3h6l1 2H8l1-2Z"/></svg>
+           Delete
+         </button>
+       </div>`
+    : '';
+
+  const sellerMeta = sellerName
+    ? `<span aria-hidden="true">&bull;</span>
+       <span class="inline-flex items-center gap-1">
+         <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-5.33 0-8 2.67-8 6v2h16v-2c0-3.33-2.67-6-8-6Z"/></svg>
+         ${sellerName}
+       </span>`
+    : '';
+
+  const cardHtml = `
+    <div class="aspect-[16/9] relative overflow-hidden">
+      ${thumbnailHtml}
+      <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-black/5 to-transparent opacity-70"></div>
+      <div class="absolute top-3 left-3 space-y-2">
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-green-600/95 text-white shadow-sm">
+          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.59 13.41 12 4.83A2 2 0 0 0 10.59 4H6a2 2 0 0 0-2 2v4.59a2 2 0 0 0 .59 1.41l8.59 8.59a2 2 0 0 0 2.82 0l4.59-4.59a2 2 0 0 0 0-2.82ZM7.5 8A1.5 1.5 0 1 1 9 6.5 1.5 1.5 0 0 1 7.5 8Z"/></svg>
+          ${categoryLbl}
+        </span>
+      </div>
+      <div class="absolute top-3 right-3 flex gap-2">
+        ${featuredLabel}
+        ${hotLabel}
+      </div>
+      ${priceBadge}
+    </div>
+    <div class="p-5">
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 mb-2.5">
+        <span class="inline-flex items-center gap-1">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M7 2h2v2h6V2h2v2h3a1 1 0 0 1 1 1v3H3V5a1 1 0 0 1 1-1h3V2Zm14 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9h18Z"/></svg>
+          <time datetime="${createdAtAttr}">${createdAtLabel}</time>
+        </span>
+        <span aria-hidden="true">&bull;</span>
+        <span class="inline-flex items-center gap-1">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5c-7 0-11 7-11 7s4 7 11 7 11-7 11-7-4-7-11-7Zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Z"/></svg>
+          ${newsViews} views
+        </span>
+        ${sellerMeta}
+      </div>
+      <h3 class="text-[1.075rem] font-semibold text-gray-900 mb-2 line-clamp-2 leading-snug">
+        <a href="${detailUrl}" class="bg-gradient-to-r from-green-600/0 via-green-600/0 to-green-600/0 bg-[length:0%_2px] bg-no-repeat bg-left-bottom group-hover:bg-[length:100%_2px] transition-[background-size,color] duration-300 ease-out hover:text-gray-900">
+          ${name}
+        </a>
+      </h3>
+      <p class="text-gray-600 text-sm leading-relaxed line-clamp-3">${description}</p>
+      <div class="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+        <a href="${detailUrl}" class="inline-flex items-center gap-1.5 text-sm font-medium text-green-700 hover:text-green-800 transition-colors">
+          Read more
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="m13 5 7 7-7 7v-4H4v-6h9V5Z"/></svg>
+        </a>
+        ${editDeleteHtml}
+      </div>
+    </div>
+  `;
+
+  article.innerHTML = cardHtml;
+  return article;
+}
+
+function attachCardHandlers() {
+  newsGridContainer.querySelectorAll('.edit-btn').forEach((button) => {
+    button.addEventListener('click', () => {
+      const id = button.getAttribute('data-news-id');
+      openEditModal(id);
+    });
+  });
+
+  newsGridContainer.querySelectorAll('.delete-btn').forEach((button) => {
+    button.addEventListener('click', () => {
+      const id = button.getAttribute('data-news-id');
+      showDeleteConfirm(id);
+    });
+  });
+}
+
+function renderAllNewsCards(newsItems) {
+  newsGridContainer.innerHTML = '';
+  newsItems.forEach((newsItem) => {
+    const cardElement = buildNewsCardElement(newsItem);
+    newsGridContainer.appendChild(cardElement);
+  });
+  attachCardHandlers();
+}
+
+function filterAndDisplayNews() {
+  updateFilterButtonsAppearance();
+  const filteredNews = activeFilter === 'all'
+    ? allNewsData
+    : allNewsData.filter((news) => String(news.user_id ?? news.user) === String(CURRENT_USER_ID));
+
+  if (filteredNews.length === 0) {
+    displayPageSection({ showEmpty: true });
+  } else {
+    renderAllNewsCards(filteredNews);
+    displayPageSection({ showGrid: true });
+  }
+}
+
+async function fetchNewsFromServer(showToastOnSuccess = false) {
+  try {
+    displayPageSection({ showLoading: true });
+    const response = await fetch(NEWS_API_ENDPOINT, { headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error('Failed to fetch products data from server');
+    const newsData = await response.json();
+    allNewsData = Array.isArray(newsData) ? newsData : [];
+    filterAndDisplayNews();
+    if (showToastOnSuccess) {
+      showToast('Refreshed', 'Latest products loaded.', 'success');
+    }
+  } catch (error) {
+    console.error('Error loading products:', error);
+    errorMessage.textContent = 'Failed to load products. Please try again.';
+    displayPageSection({ showError: true });
+  }
+}
+
+function openCreateModal() {
+  resetCreateForm();
+  showModalById('createModal');
+}
+
+function openEditModal(newsId) {
+  const target = allNewsData.find((item) => String(item.id) === String(newsId));
+  if (!target) {
+    showToast('Product missing', 'Unable to find this product.', 'error');
+    return;
+  }
+  editingNewsId = String(target.id);
+  populateEditForm(target);
+  showModalById('editModal');
+}
+
+function showDeleteConfirm(newsId) {
+  deletingNewsId = String(newsId);
+  showModalById('deleteModal');
+}
+
+async function submitCreateForm(event) {
+  event.preventDefault();
+  const formData = new FormData(createForm);
+  try {
+    const response = await fetch(CREATE_NEWS_ENDPOINT, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrfToken() },
+      body: formData,
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      showToast('Create failed', extractErrorMessage(data.errors || data.detail), 'error');
+      return;
+    }
+
+    hideModalById('createModal');
+    showToast('Product created', 'Your product has been published.', 'success');
+    await fetchNewsFromServer();
+  } catch (error) {
+    console.error('Create product error:', error);
+    showToast('Create failed', 'Unexpected error occurred.', 'error');
+  }
+}
+
+async function submitEditForm(event) {
+  event.preventDefault();
+  if (!editingNewsId) {
+    showToast('Update failed', 'No product selected.', 'error');
+    return;
+  }
+
+  const formData = new FormData(editForm);
+  try {
+    const response = await fetch(buildEndpoint(UPDATE_NEWS_ENDPOINT_TEMPLATE, editingNewsId), {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrfToken() },
+      body: formData,
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      showToast('Update failed', extractErrorMessage(data.errors || data.detail), 'error');
+      return;
+    }
+
+    hideModalById('editModal');
+    showToast('Product updated', 'Changes saved successfully.', 'success');
+    editingNewsId = null;
+    await fetchNewsFromServer();
+  } catch (error) {
+    console.error('Update product error:', error);
+    showToast('Update failed', 'Unexpected error occurred.', 'error');
+  }
+}
+
+async function confirmDelete() {
+  if (!deletingNewsId) {
+    showToast('Delete failed', 'No product selected.', 'error');
+    return;
+  }
+
+  try {
+    const response = await fetch(buildEndpoint(DELETE_NEWS_ENDPOINT_TEMPLATE, deletingNewsId), {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrfToken() },
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      showToast('Delete failed', extractErrorMessage(data.errors || data.detail), 'error');
+      return;
+    }
+
+    hideModalById('deleteModal');
+    showToast('Product deleted', 'Product removed successfully.', 'success');
+    deletingNewsId = null;
+    await fetchNewsFromServer();
+  } catch (error) {
+    console.error('Delete product error:', error);
+    showToast('Delete failed', 'Unexpected error occurred.', 'error');
+  }
+}
+
+function handleShowAllNewsClick() {
+  activeFilter = 'all';
+  filterAndDisplayNews();
+}
+
+function handleShowMyNewsClick() {
+  activeFilter = 'my';
+  filterAndDisplayNews();
+}
+
+function initializeNewsPage() {
+  if (showAllNewsButton) {
+    showAllNewsButton.addEventListener('click', handleShowAllNewsClick);
+  }
+  if (showMyNewsButton) {
+    showMyNewsButton.addEventListener('click', handleShowMyNewsClick);
+  }
+  if (refreshButton) {
+    refreshButton.addEventListener('click', () => fetchNewsFromServer(true));
+  }
+  if (openCreateButton) {
+    openCreateButton.addEventListener('click', openCreateModal);
+  }
+  if (emptyCreateButton) {
+    emptyCreateButton.addEventListener('click', openCreateModal);
+  }
+  if (createForm) {
+    createForm.addEventListener('submit', submitCreateForm);
+  }
+  if (editForm) {
+    editForm.addEventListener('submit', submitEditForm);
+  }
+  if (confirmDeleteBtn) {
+    confirmDeleteBtn.addEventListener('click', confirmDelete);
+  }
+
+  modalCloseButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const targetId = button.getAttribute('data-close-modal');
+      hideModalById(targetId);
+    });
+  });
+
+  [createModal, editModal, deleteModal]
+    .filter(Boolean)
+    .forEach((modal) => {
+      modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+          hideModalById(modal.id);
+        }
+      });
+    });
+
+  fetchNewsFromServer();
+}
+
+initializeNewsPage();
+</script>
+
+
 {% endblock content %}

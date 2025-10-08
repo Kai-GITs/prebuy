@@ -1,3 +1,44 @@
+Tugas 6
+
+1. Synchronous request menunggu respons sebelum halaman bisa lanjut, sehingga UI membeku sampai server selesai. Asynchronous request (misalnya lewat XMLHttpRequest/fetch) mengirim permintaan di latar belakang. Halaman tetap responsif sambil menunggu respons, dan hasilnya disisipkan ke DOM ketika sudah tersedia.
+
+2. Browser menjalankan JS, JS memanggil endpoint (biasanya view yang mengembalikan JsonResponse), lalu Django view memproses data dan merespons JSON, lalu JS menerima respons, memeriksa status, lalu memperbarui tampilan (DOM/toast/modal) tanpa reload penuh.
+
+3. Mengurangi reload halaman, respons interaksi terasa instan, trafik data lebih kecil (hanya JSON yang diperlukan), dan memberi ruang untuk UI dinamis (loading state, toast, filter real-time).
+
+4. Gunakan HTTPS, sertakan CSRF token pada setiap POST, validasi input di server (form/serializer), batasi informasi pada pesan kesalahan, dan set cookie sesi hanya lewat respons view (seperti biasa). Hindari menaruh data sensitif di JS atau localStorage.
+
+5. AJAX menjaga page tetap responsif. Form bisa menampilkan error tanpa reload, grid data diperbarui instan setelah create/update/delete, loading/error/empty state bisa ditampilkan secara terpisah, dan toast memberi umpan balik cepat—semua meningkatkan alur pengguna dan mengurangi waktu tunggu yang terasa.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Tugas 5
 
 1. !important, Origin (incline styles > stylesheet penulis >user agent), Specificity, source order
