@@ -9,7 +9,9 @@ from django.http import HttpResponse, HttpResponseRedirect, JsonResponse, HttpRe
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.utils.html import strip_tags
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+import requests
 
 from main.forms import NewsForm
 from main.models import News
@@ -102,6 +104,48 @@ def delete_news(request, id):
     news.delete()
     return JsonResponse({"status": "deleted"})
 
+
+@csrf_exempt
+def create_news_flutter(request):
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "Only POST requests are allowed."}, status=400)
+
+    if not request.user.is_authenticated:
+        return JsonResponse({"status": "error", "message": "Authentication required."}, status=401)
+
+    try:
+        payload = json.loads(request.body.decode())
+    except json.JSONDecodeError:
+        return JsonResponse({"status": "error", "message": "Invalid JSON payload."}, status=400)
+
+    name = strip_tags(payload.get("name", "")).strip()
+    description = strip_tags(payload.get("description", "")).strip()
+    category = payload.get("category", "").strip()
+    thumbnail = payload.get("thumbnail") or None
+    is_featured = bool(payload.get("is_featured", False))
+    price_raw = payload.get("price")
+
+    if not all([name, description, category, price_raw]):
+        return JsonResponse({"status": "error", "message": "Missing required fields."}, status=400)
+
+    try:
+        price = int(price_raw)
+    except (ValueError, TypeError):
+        return JsonResponse({"status": "error", "message": "Invalid price."}, status=400)
+
+    news = News.objects.create(
+        name=name,
+        price=price,
+        description=description,
+        category=category,
+        thumbnail=thumbnail,
+        is_featured=is_featured,
+        user=request.user,
+    )
+
+    return JsonResponse({"status": "success", "id": str(news.id)}, status=200)
+
+
 @login_required
 def logout_user(request):
     logout(request)
@@ -176,6 +220,23 @@ def show_json(request):
 
     return JsonResponse(data, safe=False)
 
+
+def proxy_image(request):
+    image_url = request.GET.get("url")
+    if not image_url:
+        return HttpResponse("No URL provided", status=400)
+
+    try:
+        response = requests.get(image_url, timeout=10)
+        response.raise_for_status()
+    except requests.RequestException:
+        return HttpResponse("Failed to fetch image", status=502)
+
+    return HttpResponse(
+        response.content,
+        content_type=response.headers.get("Content-Type", "image/jpeg"),
+    )
+
 def show_xml_by_id(request, news_id):
    try:
        news_item = News.objects.filter(pk=news_id)
@@ -203,6 +264,30 @@ def show_json_by_id(request, news_id):
         return JsonResponse(data)
     except News.DoesNotExist:
         return JsonResponse({'detail': 'Not found'}, status=404)
+
+
+def show_user_json(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({"detail": "Authentication required"}, status=401)
+
+    news_list = News.objects.filter(user=request.user)
+    data = [
+        {
+            'id': str(news.id),
+            'name': news.name,
+            'price': news.price,
+            'description': news.description,
+            'category': news.category,
+            'thumbnail': news.thumbnail,
+            'news_views': news.news_views,
+            'created_at': news.created_at.isoformat() if news.created_at else None,
+            'is_featured': news.is_featured,
+            'user_id': news.user.id if news.user else None,
+            'user_username': news.user.username if news.user else None,
+        }
+        for news in news_list
+    ]
+    return JsonResponse(data, safe=False)
 
 @login_required(login_url='/login')
 def show_main(request):

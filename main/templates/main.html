@@ -35,11 +35,15 @@
         <button id="refresh-btn" type="button" class="inline-flex items-center px-3 py-2 border border-gray-300 text-gray-700 rounded-md font-medium hover:bg-gray-50 transition-colors">
           Refresh
         </button>
+
+        <button </button>
       </div>
       {% if user.is_authenticated %}
         <div class="text-sm text-gray-500">Last login: {{ last_login }}</div>
       {% endif %}
     </div>
+
+
 
     <!-- Loading State -->
     <div id="loading" class="bg-white rounded-lg border border-gray-200 p-12 text-center hidden">
@@ -96,6 +100,8 @@ const createForm = document.getElementById('createForm');
 const editForm = document.getElementById('editForm');
 const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
 const modalCloseButtons = document.querySelectorAll('[data-close-modal]');
+
+
 
 // State
 let activeFilter = 'all';

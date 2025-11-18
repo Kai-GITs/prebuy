@@ -32,3 +32,14 @@ class News(models.Model):
     def increment_views(self):
         self.news_views += 1
         self.save()
+
+class Books(models.Model):
+    judul = models.CharField(max_length=255)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+
+class Author(models.Model):
+    bio = models.TextField()
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True)
+    books = models.ManyToManyField(Books, blank=True, related_name='authors')
+
